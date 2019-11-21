@@ -81,7 +81,6 @@
     <file>images/render-32-white.png</file>
     <file>images/3dprint-32.png</file>
     <file>images/3dprint-32-white.png</file>
-    <file>images/animate.png</file>
     <file>images/orthogonalwhite.png</file>
     <file>images/perspective1white.png</file>
     <file>images/crosswhite.png</file>
@@ -104,6 +103,12 @@
     <file>images/STL-white.png</file>
     <file>images/SVG.png</file>
     <file>images/SVG-white.png</file>
+    <file>images/animation-start.svg</file>
+    <file>images/animation-pause.svg</file>
+    <file>images/animation-first-frame.svg</file>
+    <file>images/animation-last-frame.svg</file>
+    <file>images/animation-previous-frame.svg</file>
+    <file>images/animation-next-frame.svg</file>
     <file>sounds/complete.wav</file>
   </qresource>
 </RCC>

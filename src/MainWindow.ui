@@ -166,20 +166,14 @@
         </widget>
        </item>
        <item>
-        <widget class="QFrame" name="animate_panel">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
+        <widget class="QFrame" name="controlsFrame">
          <property name="frameShape">
           <enum>QFrame::NoFrame</enum>
-         </property>
-         <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
          </property>
          <property name="lineWidth">
           <number>0</number>
          </property>
-         <layout class="QHBoxLayout" name="horizontalLayoutAnimate">
+         <layout class="QHBoxLayout" name="horizontalLayoutControlsFrame">
           <property name="leftMargin">
            <number>0</number>
           </property>
@@ -193,14 +187,55 @@
            <number>0</number>
           </property>
           <item>
+           <widget class="QToolBar" name="viewerToolBar">
+            <addaction name="designActionPreview"/>
+            <addaction name="designActionRender"/>
+            <addaction name="separator"/>
+            <addaction name="viewActionViewAll"/>
+            <addaction name="viewActionZoomIn"/>
+            <addaction name="viewActionZoomOut"/>
+            <addaction name="viewActionResetView"/>
+            <addaction name="separator"/>
+            <addaction name="viewActionRight"/>
+            <addaction name="viewActionTop"/>
+            <addaction name="viewActionBottom"/>
+            <addaction name="viewActionLeft"/>
+            <addaction name="viewActionFront"/>
+            <addaction name="viewActionBack"/>
+            <addaction name="separator"/>
+            <addaction name="viewActionPerspective"/>
+            <addaction name="viewActionOrthogonal"/>
+            <addaction name="separator"/>
+            <addaction name="viewActionShowAxes"/>
+            <addaction name="viewActionShowScaleProportional"/>
+            <addaction name="viewActionShowEdges"/>
+            <addaction name="separator"/>
+            <addaction name="animationActionFirstFrame"/>
+            <addaction name="animationActionPreviousFrame"/>
+            <addaction name="animationActionStartPause"/>
+            <addaction name="animationActionNextFrame"/>
+            <addaction name="animationActionLastFrame"/>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="label_time">
             <property name="text">
-             <string>Time:</string>
+             <string>$t:</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QLineEdit" name="e_tval"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_tnf">
+            <property name="text">
+             <string>TNF:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="e_tnf"/>
           </item>
           <item>
            <widget class="QLabel" name="label_fps">
@@ -213,16 +248,6 @@
            <widget class="QLineEdit" name="e_fps"/>
           </item>
           <item>
-           <widget class="QLabel" name="label_steps">
-            <property name="text">
-             <string>Steps:</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="e_fsteps"/>
-          </item>
-          <item>
            <widget class="QCheckBox" name="e_dump">
             <property name="text">
              <string>Dump Pictures</string>
@@ -232,35 +257,9 @@
          </layout>
         </widget>
        </item>
-       <item>
-        <widget class="QToolBar" name="viewerToolBar">
-         <addaction name="designActionPreview"/>
-         <addaction name="designActionRender"/>
-         <addaction name="separator"/>
-         <addaction name="viewActionViewAll"/>
-         <addaction name="viewActionZoomIn"/>
-         <addaction name="viewActionZoomOut"/>
-         <addaction name="viewActionResetView"/>
-         <addaction name="separator"/>
-         <addaction name="viewActionRight"/>
-         <addaction name="viewActionTop"/>
-         <addaction name="viewActionBottom"/>
-         <addaction name="viewActionLeft"/>
-         <addaction name="viewActionFront"/>
-         <addaction name="viewActionBack"/>
-         <addaction name="separator"/>
-         <addaction name="viewActionPerspective"/>
-         <addaction name="viewActionOrthogonal"/>
-         <addaction name="separator"/>
-         <addaction name="viewActionShowAxes"/>
-         <addaction name="viewActionShowScaleProportional"/>
-         <addaction name="viewActionShowEdges"/>
-        </widget>
-       </item>
       </layout>
-      <zorder>animate_panel</zorder>
       <zorder>qglview</zorder>
-      <zorder>viewerToolBar</zorder>
+      <zorder>controlsFrame</zorder>
       <zorder>frameCompileResult</zorder>
      </widget>
     </item>
@@ -381,7 +380,6 @@
     <addaction name="viewActionShowAxes"/>
     <addaction name="viewActionShowScaleProportional"/>
     <addaction name="viewActionShowCrosshairs"/>
-    <addaction name="viewActionAnimate"/>
     <addaction name="separator"/>
     <addaction name="viewActionTop"/>
     <addaction name="viewActionBottom"/>
@@ -1037,14 +1035,6 @@
     <string>Show Scale Markers</string>
    </property>
   </action>
-  <action name="viewActionAnimate">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Animate</string>
-   </property>
-  </action>
   <action name="viewActionTop">
    <property name="icon">
     <iconset resource="../openscad.qrc">
@@ -1410,6 +1400,73 @@
    </property>
    <property name="text">
     <string>Hide Customizer</string>
+   </property>
+  </action>
+  <action name="animationActionStartPause">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../openscad.qrc">
+     <normaloff>:/images/animation-start.svg</normaloff>
+     <normalon>:/images/animation-pause.svg</normalon>
+     <disabledoff>:/images/animation-start.svg</disabledoff>
+     <disabledon>:/images/animation-pause.svg</disabledon>
+     <activeoff>:/images/animation-start.svg</activeoff>
+     <activeon>:/images/animation-pause.svg</activeon>
+     <selectedoff>:/images/animation-start.svg</selectedoff>
+     <selectedon>:/images/animation-pause.svg</selectedon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Start/Stop Animation</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Space</string>
+   </property>
+  </action>
+  <action name="animationActionFirstFrame">
+   <property name="icon">
+    <iconset resource="../openscad.qrc">:/images/animation-first-frame.svg</iconset>
+   </property>
+   <property name="text">
+    <string>First Frame</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Home</string>
+   </property>
+  </action>
+  <action name="animationActionLastFrame">
+   <property name="icon">
+    <iconset resource="../openscad.qrc">:/images/animation-last-frame.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Last Frame</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+End</string>
+   </property>
+  </action>
+  <action name="animationActionPreviousFrame">
+   <property name="icon">
+    <iconset resource="../openscad.qrc">:/images/animation-previous-frame.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Previous Frame</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Left</string>
+   </property>
+  </action>
+  <action name="animationActionNextFrame">
+   <property name="icon">
+    <iconset resource="../openscad.qrc">:/images/animation-next-frame.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Next Frame</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Right</string>
    </property>
   </action>
  </widget>

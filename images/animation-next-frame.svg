@@ -1,0 +1,26 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: fig2dev Version 3.2 Patchlevel 5e -->
+<!-- CreationDate: Fri Nov 22 18:08:23 2019 -->
+<!-- Magnification: 1.050 -->
+<svg	xmlns="http://www.w3.org/2000/svg"
+	xmlns:xlink="http://www.w3.org/1999/xlink"
+	width="4cm" height="4cm"
+	viewBox="0 0 1889 1889">
+<g style="fill:none">
+<!-- Line -->
+<polygon points="944,472
+1606,944
+944,1417
+944,472
+" style="stroke:#000000;stroke-width:111;
+stroke-linejoin:round; stroke-linecap:butt;
+"/>
+<!-- Line: box -->
+<rect x="472" y="472" width="236" height="944" rx="0" 
+style="stroke:#000000;stroke-width:111;
+stroke-linejoin:round; stroke-linecap:butt;
+"/>
+</g>
+</svg>

@@ -16,6 +16,8 @@
 #include <vector>
 #include <QMutex>
 #include <QElapsedTimer>
+#include <QRegExpValidator>
+#include <QPalette>
 #include <QTime>
 #include <QIODevice>
 #include "input/InputDriver.h"
@@ -29,10 +31,18 @@ public:
 
 	class Preferences *prefs;
 
+	int e_tval_prec;
+	int e_tnf_prec_off;
+	bool e_tval_prec_follows_e_tnf_prec;
+	QPalette * e_tval_pal;
+	QPalette * e_tnf_pal;
+	QPalette * e_fps_pal;
+
 	QTimer *animate_timer;
-	int anim_step;
-	int anim_numsteps;
 	double anim_tval;
+	int anim_numsteps;
+	int anim_fps;
+	int anim_step;
 	bool anim_dumping;
 	int anim_dump_start_step;
 
@@ -81,11 +91,18 @@ protected:
 	void closeEvent(QCloseEvent *event) override;
 
 private slots:
-	void updatedAnimTval();
-	void updatedAnimFps();
-	void updatedAnimSteps();
+	void animationStartPause();
+	void animationFirstFrame();
+	void animationLastFrame();
+	void animationPreviousFrame();
+	void animationNextFrame();
+	void editedAnimTval(QString);
+	void finishedEditingAnimTval();
+	void editedAnimTnf(QString);
+	void finishedEditingAnimTnf();
+	void editedAnimFps(QString);
+	void finishedEditingAnimFps();
 	void updatedAnimDump(bool checked);
-	void updateTVal();
 	void updateMdiMode(bool mdi);
 	void updateUndockMode(bool undockMode);
 	void updateReorderMode(bool reorderMode);
@@ -100,6 +117,9 @@ private slots:
 private:
 	void initActionIcon(QAction *action, const char *darkResource, const char *lightResource);
 	void handleFileDrop(const QString &filename);
+	void stepTval(int);
+	void setTval(int);
+	void setTval(double);
 	void refreshDocument();
 	void updateCamera(const class FileContext &ctx);
 	void updateTemporalVariables();
@@ -253,7 +273,6 @@ public slots:
 	void viewModeShowAxes();
 	void viewModeShowCrosshairs();
 	void viewModeShowScaleProportional();
-	void viewModeAnimate();
 	void viewAngleTop();
 	void viewAngleBottom();
 	void viewAngleLeft();
@@ -291,6 +310,9 @@ private:
 	static bool reorderMode;
 	static const int tabStopWidth;
 	static QElapsedTimer *progressThrottle;
+	static QRegExpValidator tval_vlr;
+	static QRegExpValidator tnf_vlr;
+	static QRegExpValidator fps_vlr;
 
 	shared_ptr<class CSGNode> csgRoot;		   // Result of the CSGTreeEvaluator
 	shared_ptr<CSGNode> normalizedRoot;		  // Normalized CSG tree

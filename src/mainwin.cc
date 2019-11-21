@@ -141,7 +141,25 @@
 #include "PrintInitDialog.h"
 #include "input/InputDriverManager.h"
 #include <cstdio>
+#include <cmath>
 #include <QtNetwork>
+
+#define VQLE_INIT(name, value)  this->anim_ ## name = value;      \
+                                this->e_ ## name->setText(# value)
+
+#define QLE_ERR_DEL(name)		QLE_ERR_DEL_S(name,)
+#define QLE_ERR_DEL_S(name, s)	if (e_ ## name ## _pal != nullptr) {				\
+									e_ ## name->setPalette(*(e_ ## name ## _pal));	\
+									delete e_ ## name ## _pal;						\
+									e_ ## name ## _pal = nullptr;					\
+									s;												\
+								}
+#define QLE_ERR_SET(name)		if (e_ ## name ## _pal == nullptr) {							\
+									e_ ## name ## _pal = new QPalette(e_ ## name->palette());	\
+									QPalette p(e_ ## name->palette());							\
+									p.setColor(QPalette::Text, Qt::red);						\
+									e_ ## name->setPalette(p);									\
+								}
 
 // Global application state
 unsigned int GuiLocker::gui_locked = 0;
@@ -157,6 +175,9 @@ bool MainWindow::undockMode = false;
 bool MainWindow::reorderMode = false;
 const int MainWindow::tabStopWidth = 15;
 QElapsedTimer *MainWindow::progressThrottle = new QElapsedTimer();
+QRegExpValidator MainWindow::tval_vlr(QRegExp("0\\.\\d+|1\\.0+"));
+QRegExpValidator MainWindow::tnf_vlr(QRegExp("1\\d+|[2-9]\\d*"));
+QRegExpValidator MainWindow::fps_vlr(QRegExp("[1-9]\\d*"));
 
 namespace {
 
@@ -256,9 +277,18 @@ MainWindow::MainWindow(const QString &filename)
 
 	root_node = nullptr;
 
+	this->setFocusPolicy(Qt::StrongFocus);
+	VQLE_INIT(tval, 0.00);
+	VQLE_INIT(fps, 10);
+	this->anim_numsteps = 100 - 1;
+	this->e_tnf->setText(QString::number(anim_numsteps + 1));
+	this->e_tval_prec = e_tval->text().size() - 2;
+	this->e_tnf_prec_off = e_tval_prec - int(std::ceil(std::log10(anim_numsteps + 1)));
+	this->e_tval_prec_follows_e_tnf_prec = false;
+	this->e_tval_pal = nullptr;
+	this->e_tnf_pal = nullptr;
+	this->e_fps_pal = nullptr;
 	this->anim_step = 0;
-	this->anim_numsteps = 0;
-	this->anim_tval = 0.0;
 	this->anim_dumping = false;
 	this->anim_dump_start_step = 0;
 
@@ -288,7 +318,7 @@ MainWindow::MainWindow(const QString &filename)
 	this->qglview->setMouseCentricZoom(s->get(Settings::Settings::mouseCentricZoom).toBool());
 
 	animate_timer = new QTimer(this);
-	connect(animate_timer, SIGNAL(timeout()), this, SLOT(updateTVal()));
+	connect(animate_timer, SIGNAL(timeout()), this, SLOT(animationNextFrame()));
 
 	autoReloadTimer = new QTimer(this);
 	autoReloadTimer->setSingleShot(false);
@@ -301,14 +331,21 @@ MainWindow::MainWindow(const QString &filename)
 	connect(waitAfterReloadTimer, SIGNAL(timeout()), this, SLOT(waitAfterReload()));
 	connect(this->parameterWidget, SIGNAL(previewRequested(bool)), this, SLOT(actionRenderPreview(bool)));
 	connect(Preferences::inst(), SIGNAL(ExperimentalChanged()), this, SLOT(changeParameterWidget()));
-	connect(this->e_tval, SIGNAL(textChanged(QString)), this, SLOT(updatedAnimTval()));
-	connect(this->e_fps, SIGNAL(textChanged(QString)), this, SLOT(updatedAnimFps()));
-	connect(this->e_fsteps, SIGNAL(textChanged(QString)), this, SLOT(updatedAnimSteps()));
+	connect(this->animationActionStartPause, SIGNAL(triggered()), this, SLOT(animationStartPause()));
+	connect(this->animationActionFirstFrame, SIGNAL(triggered()), this, SLOT(animationFirstFrame()));
+	connect(this->animationActionLastFrame, SIGNAL(triggered()), this, SLOT(animationLastFrame()));
+	connect(this->animationActionPreviousFrame, SIGNAL(triggered()), this, SLOT(animationPreviousFrame()));
+	connect(this->animationActionNextFrame, SIGNAL(triggered()), this, SLOT(animationNextFrame()));
+	connect(this->e_tval, SIGNAL(textEdited(QString)), this, SLOT(editedAnimTval(QString)));
+	connect(this->e_tval, SIGNAL(editingFinished()), this, SLOT(finishedEditingAnimTval()));
+	connect(this->e_tnf, SIGNAL(textEdited(QString)), this, SLOT(editedAnimTnf(QString)));
+	connect(this->e_tnf, SIGNAL(editingFinished()), this, SLOT(finishedEditingAnimTnf()));
+	connect(this->e_fps, SIGNAL(textEdited(QString)), this, SLOT(editedAnimFps(QString)));
+	connect(this->e_fps, SIGNAL(editingFinished()), this, SLOT(finishedEditingAnimFps()));
 	connect(this->e_dump, SIGNAL(toggled(bool)), this, SLOT(updatedAnimDump(bool)));
 
 	progressThrottle->start();
 
-	animate_panel->hide();
 	this->hideFind(); 
 	frameCompileResult->hide();
 	this->labelCompileResultMessage->setOpenExternalLinks(false);
@@ -430,7 +467,6 @@ MainWindow::MainWindow(const QString &filename)
 	connect(this->viewActionShowAxes, SIGNAL(triggered()), this, SLOT(viewModeShowAxes()));
 	connect(this->viewActionShowCrosshairs, SIGNAL(triggered()), this, SLOT(viewModeShowCrosshairs()));
 	connect(this->viewActionShowScaleProportional, SIGNAL(triggered()), this, SLOT(viewModeShowScaleProportional()));
-	connect(this->viewActionAnimate, SIGNAL(triggered()), this, SLOT(viewModeAnimate()));
 	connect(this->viewActionTop, SIGNAL(triggered()), this, SLOT(viewAngleTop()));
 	connect(this->viewActionBottom, SIGNAL(triggered()), this, SLOT(viewAngleBottom()));
 	connect(this->viewActionLeft, SIGNAL(triggered()), this, SLOT(viewAngleLeft()));
@@ -547,7 +583,6 @@ MainWindow::MainWindow(const QString &filename)
 	initActionIcon(viewActionPerspective, ":/images/perspective1.png", ":/images/perspective1white.png");
 	initActionIcon(viewActionOrthogonal, ":/images/orthogonal.png", ":/images/orthogonalwhite.png");
 	initActionIcon(designActionPreview, ":/images/preview-32.png", ":/images/preview-32-white.png");
-	initActionIcon(viewActionAnimate, ":/images/animate.png", ":/images/animate.png");
 	initActionIcon(fileActionExportSTL, ":/images/STL.png", ":/images/STL-white.png");
 	initActionIcon(fileActionExportAMF, ":/images/AMF.png", ":/images/AMF-white.png");
 	initActionIcon(fileActionExport3MF, ":/images/3MF.png", ":/images/3MF-white.png");
@@ -947,45 +982,141 @@ void MainWindow::updateRecentFiles()
 	}
 }
 
-void MainWindow::updatedAnimTval()
+void MainWindow::animationStartPause()
 {
-	bool t_ok;
-	double t = this->e_tval->text().toDouble(&t_ok);
-	// Clamp t to 0-1
-	if (t_ok) {
-		this->anim_tval = t < 0 ? 0.0 : ((t > 1.0) ? 1.0 : t);
-	}
-	else {
-		this->anim_tval = 0.0;
-	}
-	emit actionRenderPreview(true);
-}
+	if (animationActionStartPause->isChecked()) {
 
-void MainWindow::updatedAnimFps()
-{
-	bool fps_ok;
-	double fps = this->e_fps->text().toDouble(&fps_ok);
-	animate_timer->stop();
-	if (fps_ok && fps > 0 && this->anim_numsteps > 0) {
-		this->anim_step = int(this->anim_tval * this->anim_numsteps) % this->anim_numsteps;
+		animationActionFirstFrame->setEnabled(false);
+		animationActionLastFrame->setEnabled(false);
+		animationActionPreviousFrame->setEnabled(false);
+		animationActionNextFrame->setEnabled(false);
+
+		e_tval->setEnabled(false);
+
 		animate_timer->setSingleShot(false);
-		animate_timer->setInterval(int(1000 / fps));
+		animate_timer->setInterval(int(1000.0 / anim_fps));
 		animate_timer->start();
+
+	} else {
+
+		animate_timer->stop();
+
+		animationActionFirstFrame->setEnabled(true);
+		animationActionLastFrame->setEnabled(true);
+		animationActionPreviousFrame->setEnabled(true);
+		animationActionNextFrame->setEnabled(true);
+
+		e_tval->setEnabled(true);
 	}
 }
 
-void MainWindow::updatedAnimSteps()
+void MainWindow::animationFirstFrame()
 {
-	bool steps_ok;
-	int numsteps = this->e_fsteps->text().toInt(&steps_ok);
-	if (steps_ok) {
-		this->anim_numsteps = numsteps;
-		updatedAnimFps(); // Make sure we start
+	setTval(0);
+}
+
+void MainWindow::animationLastFrame()
+{
+	setTval(anim_numsteps);
+}
+
+void MainWindow::animationPreviousFrame()
+{
+	stepTval(-1);
+}
+
+void MainWindow::animationNextFrame()
+{
+	stepTval(1);
+}
+
+void MainWindow::editedAnimTval(QString s)
+{
+	int pos = 0;
+	bool tval_ok;
+	double tval = e_tval->text().toDouble(&tval_ok);
+	if (tval_ok && (tval_vlr.validate(s, pos) == QValidator::Acceptable)) {
+		QLE_ERR_DEL(tval);
+		int prec = e_tval->text().size() - 2;
+		if (e_tval_prec_follows_e_tnf_prec) {
+			e_tval_prec_follows_e_tnf_prec = false;
+			e_tnf_prec_off = prec - e_tval_prec;
+		} else {
+			e_tnf_prec_off += prec - e_tval_prec;
+		}
+		e_tval_prec = prec;
+		setTval(tval);
+	} else {
+		QLE_ERR_SET(tval);
 	}
-	else {
-		this->anim_numsteps = 0;
+}
+
+void MainWindow::finishedEditingAnimTval()
+{
+	QLE_ERR_DEL_S(tval, e_tval->setText(QString::number(anim_tval, 'f', e_tval_prec)));
+}
+
+void MainWindow::editedAnimTnf(QString s)
+{
+	int pos = 0;
+	bool tnf_ok;
+	int tnf = e_tnf->text().toInt(&tnf_ok, 10);
+	if (tnf_ok && (tnf_vlr.validate(s, pos) == QValidator::Acceptable)) {
+		QLE_ERR_DEL(tnf);
+		anim_numsteps = tnf - 1;
+		anim_step = int(anim_tval * anim_numsteps);
+		int prec = int(std::ceil(std::log10(anim_numsteps + 1)));
+		int prec_off = e_tval_prec - prec;
+		if (!e_tval_prec_follows_e_tnf_prec) {
+			if ((prec > e_tval_prec) && (e_tnf_prec_off >= 0)) {
+				e_tval_prec_follows_e_tnf_prec = true;
+				e_tval_prec = prec;
+				e_tval->setText(QString::number(anim_tval, 'f', e_tval_prec));
+			}
+			e_tnf_prec_off = prec_off;
+		} else {
+			if (-prec_off > e_tnf_prec_off) {
+				e_tval_prec = prec;
+			} else {
+				e_tval_prec_follows_e_tnf_prec = false;
+				e_tval_prec = e_tval_prec + e_tnf_prec_off;
+			}
+			e_tval->setText(QString::number(anim_tval, 'f', e_tval_prec));
+			e_tnf_prec_off += prec_off;
+		}
+	} else {
+		QLE_ERR_SET(tnf);
 	}
 	anim_dumping=false;
+}
+
+void MainWindow::finishedEditingAnimTnf()
+{
+	QLE_ERR_DEL_S(tnf, e_tnf->setText(QString::number(anim_numsteps + 1)));
+}
+
+void MainWindow::editedAnimFps(QString s)
+{
+	int pos = 0;
+	bool fps_ok;
+	int fps = e_fps->text().toInt(&fps_ok, 10);
+	if (fps_ok && (fps_vlr.validate(s, pos) == QValidator::Acceptable)) {
+		QLE_ERR_DEL(fps);
+		anim_fps = fps;
+		if (animationActionStartPause->isChecked()) {
+			animate_timer->stop();
+			animate_timer->setSingleShot(false);
+			animate_timer->setInterval(int(1000.0 / anim_fps));
+			animate_timer->start();
+		}
+	} else {
+		QLE_ERR_SET(fps);
+	}
+}
+
+void MainWindow::finishedEditingAnimFps()
+{
+	QLE_ERR_DEL_S(fps, e_fps->setText(QString::number(anim_fps)));
 }
 
 void MainWindow::updatedAnimDump(bool checked)
@@ -993,25 +1124,35 @@ void MainWindow::updatedAnimDump(bool checked)
 	if (!checked) this->anim_dumping = false;
 }
 
-// Only called from animate_timer
-void MainWindow::updateTVal()
+void MainWindow::stepTval(int d)
 {
-	if (this->anim_numsteps == 0) return;
-
 	if (viewActionHideParameters->isVisible()) {
-		if (this->parameterWidget->childHasFocus()) return;
+		if (parameterWidget->childHasFocus())
+			return;
 	}
-	
-	if (this->anim_numsteps > 1) {
-		this->anim_step = (this->anim_step + 1) % this->anim_numsteps;
-		this->anim_tval = 1.0 * this->anim_step / this->anim_numsteps;
-	}
-	else if (this->anim_numsteps > 0) {
-		this->anim_step = 0;
-		this->anim_tval = 0.0;
-	}
-	const QString txt = QString::number(this->anim_tval, 'f', 5);
-	this->e_tval->setText(txt);
+
+	int step = anim_step + d;
+	if (step > anim_numsteps)
+		step = 0;
+	else if (step < 0)
+		step = anim_numsteps;
+
+	setTval(step);
+}
+
+void MainWindow::setTval(int step)
+{
+	anim_tval = double(step) / anim_numsteps;
+	anim_step = step;
+	e_tval->setText(QString::number(anim_tval, 'f', e_tval_prec));
+	emit actionRenderPreview(true);
+}
+
+void MainWindow::setTval(double tval)
+{
+	anim_tval = tval;
+	anim_step = int(anim_tval * anim_numsteps);
+	emit actionRenderPreview(true);
 }
 
 void MainWindow::refreshDocument()
@@ -2018,7 +2159,7 @@ void MainWindow::actionRenderPreview(bool rebuildParameterWidget)
 	PRINT("Parsing design (AST generation)...");
 	this->processEvents();
 	this->afterCompileSlot = "csgRender";
-	this->procevents = !viewActionAnimate->isChecked();
+	this->procevents = false;
 	this->top_ctx.set_variable("$preview", ValuePtr(true));
 	compile(false,false,rebuildParameterWidget);
 	if (preview_requested) {
@@ -2724,18 +2865,6 @@ void MainWindow::viewModeShowScaleProportional()
 	this->qglview->updateGL();
 }
 
-void MainWindow::viewModeAnimate()
-{
-	if (viewActionAnimate->isChecked()) {
-		animate_panel->show();
-		actionRenderPreview();
-		updatedAnimFps();
-	} else {
-		animate_panel->hide();
-		animate_timer->stop();
-	}
-}
-
 bool MainWindow::isEmpty()
 {
 	return this->editor->toPlainText().isEmpty();
@@ -2751,15 +2880,13 @@ void MainWindow::animateUpdateDocChanged()
 
 void MainWindow::animateUpdate()
 {
-	if (animate_panel->isVisible()) {
-		bool fps_ok;
-		double fps = this->e_fps->text().toDouble(&fps_ok);
-		if (fps_ok && fps <= 0 && !animate_timer->isActive()) {
-			animate_timer->stop();
-			animate_timer->setSingleShot(true);
-			animate_timer->setInterval(50);
-			animate_timer->start();
-		}
+	bool fps_ok;
+	double fps = this->e_fps->text().toDouble(&fps_ok);
+	if (fps_ok && fps <= 0 && !animate_timer->isActive()) {
+		animate_timer->stop();
+		animate_timer->setSingleShot(true);
+		animate_timer->setInterval(50);
+		animate_timer->start();
 	}
 }
 
@@ -2911,10 +3038,10 @@ void MainWindow::hideToolbars()
 	settings.setValue("view/hideToolbar", shouldHide);
 
 	if (shouldHide) {
-		viewerToolBar->hide();
+		controlsFrame->hide();
 		editortoolbar->hide();
 	} else {
-		viewerToolBar->show();
+		controlsFrame->show();
 		editortoolbar->show();
 	}
 }
