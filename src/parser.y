@@ -112,7 +112,7 @@ bool fileEnded=false;
 %token TOK_FALSE
 %token TOK_UNDEF
 
-%token LE GE EQ NE AND OR
+%token MUL DIV LE GE EQ NE AND OR NOT
 
 %right LET
 %right LOW_PRIO_RIGHT
@@ -126,8 +126,8 @@ bool fileEnded=false;
 %left '<' LE GE '>'
 %left EQ NE
 
-%left '!' '+' '-'
-%left '*' '/' '%'
+%left NOT '+' '-'
+%left MUL DIV '%'
 %left UNARY
 %left '[' ']'
 %left '.'
@@ -408,11 +408,11 @@ expr:
             {
               $$ = $2;
             }
-        | expr '*' expr
+        | expr MUL expr
             {
               $$ = new BinaryOp($1, BinaryOp::Op::Multiply, $3, LOC(@$));
             }
-        | expr '/' expr
+        | expr DIV expr
             {
               $$ = new BinaryOp($1, BinaryOp::Op::Divide, $3, LOC(@$));
             }
@@ -468,7 +468,7 @@ expr:
             {
               $$ = new UnaryOp(UnaryOp::Op::Negate, $2, LOC(@$));
             }
-        | '!' expr
+        | NOT expr
             {
               $$ = new UnaryOp(UnaryOp::Op::Not, $2, LOC(@$));
             }

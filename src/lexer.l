@@ -119,11 +119,66 @@ D [0-9]
 E [Ee][+-]?{D}+
 H [0-9a-fA-F]
 
+/* Unicode C1 Controls and Latin-1 Supplement */
+NOTS    \xc2\xac
+MDOT    \xc2\xb7
+L1Sa    \xc3[\x80-\x96]
+MULS    \xc3\x97
+L1Sb    \xc3[\x98-\xb6]
+DIVS    \xc3\xb7
+L1Sc    \xc3[\xb8-\xbf]
+L1S     {L1Sa}|{L1Sb}|{L1Sc}
+
+/* Unicode Greek and Coptic */
+GRKUa   \xce[\x91-\xa1]
+GRKUb   \xce[\xa3-\xa9]
+GRKLa   \xce[\xb1-\xbf]
+GRKLb   \xcf[\x80-\x89]
+GRK     {GRKUa}|{GRKUb}|{GRKLa}|{GRKLb}
+
+/* Unicode General Punctuation */
+DVLS    \xe2\x80\x96
+
+/* Unicode Mathematical Operators */
+ANDS    \xe2\x88\xa7
+ORS     \xe2\x88\xa8
+CEQS    \xe2\x89\x94
+NES     \xe2\x89\xa0
+LES     \xe2\x89\xa4
+GES     \xe2\x89\xa5
+
 U       [\x80-\xbf]
-U2      [\xc2-\xdf]
-U3      [\xe0-\xef]
+U2a     \xc2[\xa1-\xab]
+U2b     \xc2[\xad-\xb6]
+U2c     \xc2[\xb8-\xbf]
+U2d     [\xc4-\xcd]{U}
+U2e     \xce[\x80-\x90]
+U2f     \xce\xa2
+U2g     \xce[\xaa-\xb0]
+U2h     \xcf[\x8a-\xbf]
+U2i     [\xd0-\xdf]{U}
+U2      {U2a}|{U2b}|{U2c}|{MULS}|{U2d}|{U2e}|{U2f}|{U2g}|{U2h}|{U2i}
+U3a     [\xe0-\xe1]{U}{U}
+U3b     \xe2\x80[\x80-\x95]
+U3c     \xe2\x80[\x97-\xbf]
+U3d     \xe2[\x81-\x87]{U}
+U3e     \xe2\x88[\x80-\xa6]
+U3f     \xe2\x88[\xa9-\xbf]
+U3g     \xe2\x89[\x80-\x93]
+U3h     \xe2\x89[\x95-\x9f]
+U3i     \xe2\x89[\xa1-\xa3]
+U3j     \xe2\x89[\xa6-\xbf]
+U3k     \xe2[\x8a-\xbf]{U}
+U3l     [\xe3-\xef]{U}{U}
+U3      {U3a}|{U3b}|{DVLS}|{U3c}|{U3d}|{U3e}|{U3f}|{U3g}|{CEQS}|{U3h}|{U3i}|{U3j}|{U3k}|{U3l}
 U4      [\xf0-\xf4]
-UNICODE {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
+UNICODE {U2}|{U3}|{U4}{U}{U}{U}
+
+/* [a-zA-Z] */
+LL      [\x61-\x7a]
+LU      [\x41-\x5a]
+
+IDCHAR  {LL}|{LU}|{D}|"_"|{L1S}|{GRK}
 
 %%
 
@@ -242,14 +297,17 @@ use[ \t\r\n]*"<"	{ BEGIN(cond_use); }
                                 return TOK_NUMBER;
                             } catch (boost::bad_lexical_cast&) {}
                         }
-"$"?[a-zA-Z0-9_]+       { parserlval.text = strdup(yytext); return TOK_ID; }
+"$"?{IDCHAR}+           { parserlval.text = strdup(yytext); return TOK_ID; }
 
-"<="	return LE;
-">="	return GE;
-"=="	return EQ;
-"!="	return NE;
-"&&"	return AND;
-"||"	return OR;
+{MDOT}|"*"              return MUL;
+{DIVS}|"/"              return DIV;
+{LES}|"<="              return LE;
+{GES}|">="              return GE;
+"=="                    return EQ;
+{NES}|"!="              return NE;
+{ANDS}|"&&"             return AND;
+{ORS}|"||"              return OR;
+{NOTS}|"!"              return NOT;
 
 . { return yytext[0]; }
 
