@@ -170,7 +170,7 @@ U3i     \xe2\x89[\xa1-\xa3]
 U3j     \xe2\x89[\xa6-\xbf]
 U3k     \xe2[\x8a-\xbf]{U}
 U3l     [\xe3-\xef]{U}{U}
-U3      {U3a}|{U3b}|{DVLS}|{U3c}|{U3d}|{U3e}|{U3f}|{U3g}|{CEQS}|{U3h}|{U3i}|{U3j}|{U3k}|{U3l}
+U3      {U3a}|{U3b}|{DVLS}|{U3c}|{U3d}|{U3e}|{U3f}|{U3g}|{U3h}|{U3i}|{U3j}|{U3k}|{U3l}
 U4      [\xf0-\xf4]
 UNICODE {U2}|{U3}|{U4}{U}{U}{U}
 
@@ -299,11 +299,12 @@ use[ \t\r\n]*"<"	{ BEGIN(cond_use); }
                         }
 "$"?{IDCHAR}+           { parserlval.text = strdup(yytext); return TOK_ID; }
 
+{CEQS}|":="             return DFDF;
 {MDOT}|"*"              return MUL;
 {DIVS}|"/"              return DIV;
 {LES}|"<="              return LE;
 {GES}|">="              return GE;
-"=="                    return EQ;
+"="                     return EQ;
 {NES}|"!="              return NE;
 {ANDS}|"&&"             return AND;
 {ORS}|"||"              return OR;

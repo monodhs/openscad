@@ -112,6 +112,8 @@ bool fileEnded=false;
 %token TOK_FALSE
 %token TOK_UNDEF
 
+%token DFDF
+
 %token MUL DIV LE GE EQ NE AND OR NOT
 
 %right LET
@@ -189,7 +191,7 @@ statement:
             {
                 scope_stack.pop();
             }
-        | TOK_FUNCTION TOK_ID '(' arguments_decl optional_commas ')' '=' expr
+        | TOK_FUNCTION TOK_ID '(' arguments_decl optional_commas ')' DFDF expr
             {
               UserFunction *func = UserFunction::create($2, *$4, shared_ptr<Expression>($8), LOC(@$));
               scope_stack.top()->addFunction(func);
@@ -209,7 +211,7 @@ inner_input:
         ;
 
 assignment:
-          TOK_ID '=' expr ';'
+          TOK_ID DFDF expr ';'
             {
                 bool found = false;
                 for (auto &assignment : scope_stack.top()->assignments) {
@@ -621,7 +623,7 @@ argument_decl:
                 $$ = new Assignment($1, LOC(@$));
                 free($1);
             }
-        | TOK_ID '=' expr
+        | TOK_ID DFDF expr
             {
               $$ = new Assignment($1, shared_ptr<Expression>($3), LOC(@$));
                 free($1);
@@ -652,7 +654,7 @@ argument_call:
             {
                 $$ = new Assignment("", shared_ptr<Expression>($1), LOC(@$));
             }
-        | TOK_ID '=' expr
+        | TOK_ID DFDF expr
             {
                 $$ = new Assignment($1, shared_ptr<Expression>($3), LOC(@$));
                 free($1);
