@@ -884,7 +884,7 @@ void MainWindow::openFile(const QString &new_filename)
 	const auto suffix = fileInfo.suffix().toLower();
 	const auto knownFileType = knownFileExtensions.contains(suffix);
 	const auto cmd = knownFileExtensions[suffix];
-	if (knownFileType && cmd.isEmpty()) {
+	if (suffix.isEmpty() || (knownFileType && cmd.isEmpty())) {
 		setFileName(new_filename);
 		updateRecentFiles();
 	} else {
@@ -1594,22 +1594,19 @@ void MainWindow::actionSave()
 
 void MainWindow::actionSaveAs()
 {
+	QSettingsCached settings;
+	auto last_selfilter = settings.value("lastSaveSelFilter").toString();
 	auto new_filename = QFileDialog::getSaveFileName(this, _("Save File"),
 			this->fileName.isEmpty()?_("Untitled.scad"):this->fileName,
-			_("OpenSCAD Designs (*.scad)"));
+			_("OpenSCAD Designs (*.scad);;All Files (*)"),
+			&last_selfilter);
 	if (!new_filename.isEmpty()) {
-		if (QFileInfo(new_filename).suffix().isEmpty()) {
-			new_filename.append(".scad");
-
-			// Manual overwrite check since Qt doesn't do it, when using the
-			// defaultSuffix property
-			QFileInfo info(new_filename);
-			if (info.exists()) {
-				if (QMessageBox::warning(this, windowTitle(),
-																 QString(_("%1 already exists.\nDo you want to replace it?")).arg(info.fileName()),
-																 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
-					return;
-				}
+		QFileInfo info(new_filename);
+		if (info.exists()) {
+			if (QMessageBox::warning(this, windowTitle(),
+															QString(_("%1 already exists.\nDo you want to replace it?")).arg(info.fileName()),
+															QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+				return;
 			}
 		}
 		this->parameterWidget->writeFileIfNotEmpty(new_filename);
@@ -1617,6 +1614,7 @@ void MainWindow::actionSaveAs()
 		clearExportPaths();
 		actionSave();
 	}
+	settings.setValue("lastSaveSelFilter", last_selfilter);
 }
 
 void MainWindow::actionShowLibraryFolder()
@@ -2515,7 +2513,7 @@ void MainWindow::actionExport(FileFormat format, const char *type_name, const ch
 	if (! canExport(dim))
 		return;
 	auto title = QString(_("Export %1 File")).arg(type_name);
-	auto filter = QString(_("%1 Files (*%2)")).arg(type_name, suffix);
+	auto filter = QString(_("%1 Files (*%2);;All Files (*)")).arg(type_name, suffix);
 	auto exportFilename = QFileDialog::getSaveFileName(this, title, exportPath(suffix), filter);
 	if (exportFilename.isEmpty()) {
 		clearCurrentOutput();
@@ -2571,7 +2569,7 @@ void MainWindow::actionExportCSG()
 	}
 	const auto suffix = ".csg";
 	auto csg_filename = QFileDialog::getSaveFileName(this,
-		_("Export CSG File"), exportPath(suffix), _("CSG Files (*.csg)"));
+		_("Export CSG File"), exportPath(suffix), _("CSG Files (*.csg);;All Files (*)"));
 
 	if (csg_filename.isEmpty()) {
 		clearCurrentOutput();
@@ -2598,7 +2596,7 @@ void MainWindow::actionExportImage()
 	qglview->grabFrame();
 	const auto suffix = ".png";
 	auto img_filename = QFileDialog::getSaveFileName(this,
-			_("Export Image"),  exportPath(suffix), _("PNG Files (*.png)"));
+			_("Export Image"),  exportPath(suffix), _("PNG Files (*.png);;All Files (*)"));
 	if (!img_filename.isEmpty()) {
 		qglview->save(img_filename.toLocal8Bit().constData());
 		this->export_paths[suffix] = img_filename;
